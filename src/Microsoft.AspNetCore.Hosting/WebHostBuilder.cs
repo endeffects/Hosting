@@ -40,8 +40,6 @@ namespace Microsoft.AspNetCore.Hosting
         // Only one of these should be set
         private IServerFactory _serverFactory;
 
-        private IDictionary<string, string> _settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
-
         public WebHostBuilder()
         {
             _hostingEnvironment = new HostingEnvironment();
@@ -52,11 +50,15 @@ namespace Microsoft.AspNetCore.Hosting
         /// Gets the raw settings to be used by the web host. Values specified here will override 
         /// the configuration set by <see cref="UseConfiguration(IConfiguration)"/>.
         /// </summary>
-        public IDictionary<string, string> Settings
+        public IConfiguration Configuration
         {
             get
             {
-                return _settings;
+                if (_config == null)
+                {
+                    _config = new ConfigurationBuilder().AddInMemoryCollection().Build();
+                }
+                return _config;
             }
         }
 
@@ -68,7 +70,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
         public IWebHostBuilder UseSetting(string key, string value)
         {
-            _settings[key] = value;
+            Configuration[key] = value;
             return this;
         }
 
@@ -80,7 +82,10 @@ namespace Microsoft.AspNetCore.Hosting
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
         public IWebHostBuilder UseConfiguration(IConfiguration configuration)
         {
-            _config = configuration;
+            _config = new ConfigurationBuilder()
+                .Add(new IncludedConfigurationProvider(Configuration))
+                .Add(new IncludedConfigurationProvider(configuration))
+                .Build();
             return this;
         }
 
@@ -187,15 +192,6 @@ namespace Microsoft.AspNetCore.Hosting
 
         private IServiceCollection BuildHostingServices()
         {
-            // Apply the configuration settings
-            var configuration = _config ?? WebHostConfiguration.GetDefault();
-
-            var mergedConfiguration = new ConfigurationBuilder()
-                                .Add(new IncludedConfigurationProvider(configuration))
-                                .AddInMemoryCollection(_settings)
-                                .Build();
-
-            _config = mergedConfiguration;
             _options = new WebHostOptions(_config);
 
             var services = new ServiceCollection();

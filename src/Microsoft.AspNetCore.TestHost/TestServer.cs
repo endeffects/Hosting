@@ -22,7 +22,7 @@ namespace Microsoft.AspNetCore.TestHost
 
         public TestServer(IWebHostBuilder builder)
         {
-            if (!builder.Settings.ContainsKey(WebHostDefaults.CaptureStartupErrorsKey))
+            if (builder.Configuration[WebHostDefaults.CaptureStartupErrorsKey] == null)
             {
                 builder.UseCaptureStartupErrors(false);
             }

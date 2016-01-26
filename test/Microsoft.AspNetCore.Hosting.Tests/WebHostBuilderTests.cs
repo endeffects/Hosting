@@ -127,6 +127,7 @@ namespace Microsoft.AspNetCore.Hosting
         public void CaptureStartupErrorsByDefault()
         {
             var hostBuilder = new WebHostBuilder()
+                .UseDefaultConfiguration()
                 .UseServer(new TestServer())
                 .UseStartup<StartupBoom>();
 

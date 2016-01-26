@@ -24,7 +24,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// Gets the raw settings to be used by the web host. Values specified here will override 
         /// the configuration set by <see cref="UseConfiguration(IConfiguration)"/>.
         /// </summary>
-        IDictionary<string, string> Settings { get; }
+        IConfiguration Configuration { get; }
 
         /// <summary>
         /// Specify the <see cref="IConfiguration"/> to be used by the web host. If no configuration is
