@@ -150,13 +150,14 @@ namespace Microsoft.AspNetCore.Hosting
         public void CodeBasedSettingsCodeBasedOverride()
         {
             var hostBuilder = new WebHostBuilder()
-                .UseCaptureStartupErrors(false)
-                .UseCaptureStartupErrors(true)
+                .UseSetting(WebHostDefaults.ServerKey, "ServerA")
+                .UseSetting(WebHostDefaults.ServerKey, "ServerB")
                 .UseServer(new TestServer())
-                .UseStartup<StartupBoom>();
+                .UseStartup<StartupNoServices>();
+            
+            var host = (WebHost)hostBuilder.Build();
 
-            // This should not throw
-            hostBuilder.Build();
+            Assert.Equal("ServerB", host.ServerFactoryLocation);
         }
 
         [Fact]
@@ -164,7 +165,7 @@ namespace Microsoft.AspNetCore.Hosting
         {
             var settings = new Dictionary<string, string>
             {
-                { WebHostDefaults.CaptureStartupErrorsKey, "true" }
+                { WebHostDefaults.ServerKey, "ServerB" }
             };
 
             var config = new ConfigurationBuilder()
@@ -172,13 +173,14 @@ namespace Microsoft.AspNetCore.Hosting
                 .Build();
 
             var hostBuilder = new WebHostBuilder()
-                .UseCaptureStartupErrors(false)
+                .UseSetting(WebHostDefaults.ServerKey, "ServerA")
                 .UseConfiguration(config)
                 .UseServer(new TestServer())
-                .UseStartup<StartupBoom>();
+                .UseStartup<StartupNoServices>();
 
-            // This should not throw
-            hostBuilder.Build();
+            var host = (WebHost)hostBuilder.Build();
+
+            Assert.Equal("ServerB", host.ServerFactoryLocation);
         }
 
         [Fact]
@@ -186,7 +188,7 @@ namespace Microsoft.AspNetCore.Hosting
         {
             var settings = new Dictionary<string, string>
             {
-                { WebHostDefaults.CaptureStartupErrorsKey, "false" }
+                { WebHostDefaults.ServerKey, "ServerA" }
             };
 
             var config = new ConfigurationBuilder()
@@ -195,12 +197,13 @@ namespace Microsoft.AspNetCore.Hosting
 
             var hostBuilder = new WebHostBuilder()
                 .UseConfiguration(config)
-                .UseCaptureStartupErrors(true)
+                .UseSetting(WebHostDefaults.ServerKey, "ServerB")
                 .UseServer(new TestServer())
-                .UseStartup<StartupBoom>();
+                .UseStartup<StartupNoServices>();
 
-            // This should not throw
-            hostBuilder.Build();
+            var host = (WebHost)hostBuilder.Build();
+
+            Assert.Equal("ServerB", host.ServerFactoryLocation);
         }
 
         [Fact]
@@ -208,7 +211,7 @@ namespace Microsoft.AspNetCore.Hosting
         {
             var settings = new Dictionary<string, string>
             {
-                { WebHostDefaults.CaptureStartupErrorsKey, "false" }
+                { WebHostDefaults.ServerKey, "ServerA" }
             };
 
             var config = new ConfigurationBuilder()
@@ -217,7 +220,7 @@ namespace Microsoft.AspNetCore.Hosting
 
             var overrideSettings = new Dictionary<string, string>
             {
-                { WebHostDefaults.CaptureStartupErrorsKey, "true" }
+                { WebHostDefaults.ServerKey, "ServerB" }
             };
 
             var overrideConfig = new ConfigurationBuilder()
@@ -228,10 +231,11 @@ namespace Microsoft.AspNetCore.Hosting
                 .UseConfiguration(config)
                 .UseConfiguration(overrideConfig)
                 .UseServer(new TestServer())
-                .UseStartup<StartupBoom>();
+                .UseStartup<StartupNoServices>();
 
-            // This should not throw
-            hostBuilder.Build();
+            var host = (WebHost)hostBuilder.Build();
+
+            Assert.Equal("ServerB", host.ServerFactoryLocation);
         }
 
         [Fact]
