@@ -127,7 +127,6 @@ namespace Microsoft.AspNetCore.Hosting
         public void CaptureStartupErrorsByDefault()
         {
             var hostBuilder = new WebHostBuilder()
-                .UseDefaultConfiguration()
                 .UseServer(new TestServer())
                 .UseStartup<StartupBoom>();
 
@@ -145,6 +144,94 @@ namespace Microsoft.AspNetCore.Hosting
 
             var exception = Assert.Throws<InvalidOperationException>(() => hostBuilder.Build());
             Assert.Equal("A public method named 'ConfigureProduction' or 'Configure' could not be found in the 'Microsoft.AspNetCore.Hosting.Fakes.StartupBoom' type.", exception.Message);
+        }
+
+        [Fact]
+        public void CodeBasedSettingsCodeBasedOverride()
+        {
+            var hostBuilder = new WebHostBuilder()
+                .UseCaptureStartupErrors(false)
+                .UseCaptureStartupErrors(true)
+                .UseServer(new TestServer())
+                .UseStartup<StartupBoom>();
+
+            // This should not throw
+            hostBuilder.Build();
+        }
+
+        [Fact]
+        public void CodeBasedSettingsConfigBasedOverride()
+        {
+            var settings = new Dictionary<string, string>
+            {
+                { WebHostDefaults.CaptureStartupErrorsKey, "true" }
+            };
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(settings)
+                .Build();
+
+            var hostBuilder = new WebHostBuilder()
+                .UseCaptureStartupErrors(false)
+                .UseConfiguration(config)
+                .UseServer(new TestServer())
+                .UseStartup<StartupBoom>();
+
+            // This should not throw
+            hostBuilder.Build();
+        }
+
+        [Fact]
+        public void ConfigBasedSettingsCodeBasedOverride()
+        {
+            var settings = new Dictionary<string, string>
+            {
+                { WebHostDefaults.CaptureStartupErrorsKey, "false" }
+            };
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(settings)
+                .Build();
+
+            var hostBuilder = new WebHostBuilder()
+                .UseConfiguration(config)
+                .UseCaptureStartupErrors(true)
+                .UseServer(new TestServer())
+                .UseStartup<StartupBoom>();
+
+            // This should not throw
+            hostBuilder.Build();
+        }
+
+        [Fact]
+        public void ConfigBasedSettingsConfigBasedOverride()
+        {
+            var settings = new Dictionary<string, string>
+            {
+                { WebHostDefaults.CaptureStartupErrorsKey, "false" }
+            };
+
+            var config = new ConfigurationBuilder()
+                .AddInMemoryCollection(settings)
+                .Build();
+
+            var overrideSettings = new Dictionary<string, string>
+            {
+                { WebHostDefaults.CaptureStartupErrorsKey, "true" }
+            };
+
+            var overrideConfig = new ConfigurationBuilder()
+                .AddInMemoryCollection(overrideSettings)
+                .Build();
+
+            var hostBuilder = new WebHostBuilder()
+                .UseConfiguration(config)
+                .UseConfiguration(overrideConfig)
+                .UseServer(new TestServer())
+                .UseStartup<StartupBoom>();
+
+            // This should not throw
+            hostBuilder.Build();
         }
 
         [Fact]

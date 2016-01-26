@@ -192,6 +192,11 @@ namespace Microsoft.AspNetCore.Hosting
 
         private IServiceCollection BuildHostingServices()
         {
+            if (_config == null)
+            {
+                _config = WebHostConfiguration.GetDefault();
+            }
+
             _options = new WebHostOptions(_config);
 
             var services = new ServiceCollection();
