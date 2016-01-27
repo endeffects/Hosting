@@ -25,22 +25,22 @@ namespace Microsoft.AspNetCore.Hosting
     /// </summary>
     public class WebHostBuilder : IWebHostBuilder
     {
-        private readonly IHostingEnvironment _hostingEnvironment;
-        private readonly ILoggerFactory _loggerFactory;
+        protected readonly IHostingEnvironment _hostingEnvironment;
+        protected readonly ILoggerFactory _loggerFactory;
 
-        private IConfiguration _config;
-        private WebHostOptions _options;
+        protected IConfiguration _config;
+        protected WebHostOptions _options;
 
-        private Action<IServiceCollection> _configureServices;
-
-        // Only one of these should be set
-        private StartupMethods _startup;
-        private Type _startupType;
+        protected Action<IServiceCollection> _configureServices;
 
         // Only one of these should be set
-        private IServerFactory _serverFactory;
+        protected StartupMethods _startup;
+        protected Type _startupType;
 
-        private IDictionary<string, string> _settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        // Only one of these should be set
+        protected IServerFactory _serverFactory;
+
+        public IDictionary<string, string> _settings = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 
         public WebHostBuilder()
         {
@@ -52,13 +52,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// Gets the raw settings to be used by the web host. Values specified here will override 
         /// the configuration set by <see cref="UseConfiguration(IConfiguration)"/>.
         /// </summary>
-        public IDictionary<string, string> Settings
-        {
-            get
-            {
-                return _settings;
-            }
-        }
+        public IDictionary<string, string> Settings { get { return _settings; } }
 
         /// <summary>
         /// Add or replace a setting in <see cref="Settings"/>.
@@ -66,7 +60,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// <param name="key">The key of the setting to add or replace.</param>
         /// <param name="value">The value of the setting to add or replace.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder UseSetting(string key, string value)
+        public virtual IWebHostBuilder UseSetting(string key, string value)
         {
             _settings[key] = value;
             return this;
@@ -78,7 +72,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="configuration">The <see cref="IConfiguration"/> to be used.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder UseConfiguration(IConfiguration configuration)
+        public virtual IWebHostBuilder UseConfiguration(IConfiguration configuration)
         {
             _config = configuration;
             return this;
@@ -89,7 +83,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="factory">The <see cref="IServerFactory"/> to be used.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder UseServer(IServerFactory factory)
+        public virtual IWebHostBuilder UseServer(IServerFactory factory)
         {
             if (factory == null)
             {
@@ -105,7 +99,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="startupType">The <see cref="Type"/> to be used.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder UseStartup(Type startupType)
+        public virtual IWebHostBuilder UseStartup(Type startupType)
         {
             if (startupType == null)
             {
@@ -121,7 +115,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="configureServices">The delegate that configures the <see cref="IServiceCollection"/>.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder ConfigureServices(Action<IServiceCollection> configureServices)
+        public virtual IWebHostBuilder ConfigureServices(Action<IServiceCollection> configureServices)
         {
             _configureServices = configureServices;
             return this;
@@ -132,7 +126,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="configureApplication">The delegate that configures the <see cref="IApplicationBuilder"/>.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder Configure(Action<IApplicationBuilder> configureApp)
+        public virtual IWebHostBuilder Configure(Action<IApplicationBuilder> configureApp)
         {
             if (configureApp == null)
             {
@@ -148,7 +142,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// </summary>
         /// <param name="configureLogging">The delegate that configures the <see cref="ILoggerFactory"/>.</param>
         /// <returns>The <see cref="IWebHostBuilder"/>.</returns>
-        public IWebHostBuilder ConfigureLogging(Action<ILoggerFactory> configureLogging)
+        public virtual IWebHostBuilder ConfigureLogging(Action<ILoggerFactory> configureLogging)
         {
             configureLogging(_loggerFactory);
             return this;
@@ -157,7 +151,7 @@ namespace Microsoft.AspNetCore.Hosting
         /// <summary>
         /// Builds the required services and an <see cref="IWebHost"/> which hosts a web application.
         /// </summary>
-        public IWebHost Build()
+        public virtual IWebHost Build()
         {
             var hostingServices = BuildHostingServices();
 
@@ -169,7 +163,31 @@ namespace Microsoft.AspNetCore.Hosting
             // Initialize the hosting environment
             _hostingEnvironment.Initialize(appEnvironment.ApplicationBasePath, _options, _config);
 
-            var host = new WebHost(hostingServices, startupLoader, _options, _config);
+            var host = BuildWebHost(hostingServices, startupLoader);
+
+            return host;
+        }
+
+        protected IServiceCollection BuildHostingServices()
+        {
+            InitializeHostConfiguration();
+
+            var services = new ServiceCollection();
+
+            InitializeHostingServices(services);
+            InitializePlatformServices(services);
+
+            this._configureServices?.Invoke(services);
+
+            return services;
+        }
+
+        protected IWebHost BuildWebHost(IServiceCollection services, IStartupLoader startupLoader)
+        {
+            if( services == null ) throw new ArgumentNullException( nameof( services ) );
+            if( startupLoader == null ) throw new ArgumentNullException( nameof( startupLoader ) );
+
+            var host = new WebHost(services, startupLoader, _options, _config);
 
             // Only one of these should be set, but they are used in priority
             host.ServerFactory = _serverFactory;
@@ -185,28 +203,30 @@ namespace Microsoft.AspNetCore.Hosting
             return host;
         }
 
-        private IServiceCollection BuildHostingServices()
+        protected void InitializeHostConfiguration()
         {
             // Apply the configuration settings
             var configuration = _config ?? WebHostConfiguration.GetDefault();
 
-            var mergedConfiguration = new ConfigurationBuilder()
-                                .Add(new IncludedConfigurationProvider(configuration))
-                                .AddInMemoryCollection(_settings)
-                                .Build();
+            var mergedConfiguration = new ConfigurationBuilder().Add(new IncludedConfigurationProvider(configuration)).AddInMemoryCollection(_settings).Build();
 
             _config = mergedConfiguration;
             _options = new WebHostOptions(_config);
+        }
 
-            var services = new ServiceCollection();
+        protected void InitializeHostingServices(IServiceCollection services)
+        {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
             services.AddSingleton(_hostingEnvironment);
             services.AddSingleton(_loggerFactory);
 
             services.AddTransient<IStartupLoader, StartupLoader>();
-
             services.AddTransient<IServerLoader, ServerLoader>();
+
             services.AddTransient<IApplicationBuilderFactory, ApplicationBuilderFactory>();
             services.AddTransient<IHttpContextFactory, HttpContextFactory>();
+
             services.AddLogging();
             services.AddOptions();
 
@@ -216,34 +236,28 @@ namespace Microsoft.AspNetCore.Hosting
 
             // Conjure up a RequestServices
             services.AddTransient<IStartupFilter, AutoRequestServicesStartupFilter>();
+        }
 
+        protected void InitializePlatformServices(IServiceCollection services)
+        {
             var defaultPlatformServices = PlatformServices.Default;
+            if (defaultPlatformServices == null) return;
 
-            if (defaultPlatformServices != null)
+            if (defaultPlatformServices.Application != null)
             {
-                if (defaultPlatformServices.Application != null)
+                var appEnv = defaultPlatformServices.Application;
+                if (!string.IsNullOrEmpty(this._options.ApplicationBasePath))
                 {
-                    var appEnv = defaultPlatformServices.Application;
-                    if (!string.IsNullOrEmpty(_options.ApplicationBasePath))
-                    {
-                        appEnv = new WrappedApplicationEnvironment(_options.ApplicationBasePath, appEnv);
-                    }
-
-                    services.TryAddSingleton(appEnv);
+                    appEnv = new WrappedApplicationEnvironment(this._options.ApplicationBasePath, appEnv);
                 }
 
-                if (defaultPlatformServices.Runtime != null)
-                {
-                    services.TryAddSingleton(defaultPlatformServices.Runtime);
-                }
+                services.TryAddSingleton(appEnv);
             }
 
-            if (_configureServices != null)
+            if (defaultPlatformServices.Runtime != null)
             {
-                _configureServices(services);
+                services.TryAddSingleton(defaultPlatformServices.Runtime);
             }
-
-            return services;
         }
 
         private class WrappedApplicationEnvironment : IApplicationEnvironment
