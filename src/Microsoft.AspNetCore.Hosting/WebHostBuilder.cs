@@ -240,6 +240,8 @@ namespace Microsoft.AspNetCore.Hosting
 
         protected void InitializePlatformServices(IServiceCollection services)
         {
+            if (services == null) throw new ArgumentNullException(nameof(services));
+
             var defaultPlatformServices = PlatformServices.Default;
             if (defaultPlatformServices == null) return;
 
